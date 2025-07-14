@@ -1,32 +1,88 @@
-/// Interface representing `HelloContract`.
-/// This interface allows modification and retrieval of the contract balance.
-#[starknet::interface]
-pub trait IHelloStarknet<TContractState> {
-    /// Increase contract balance.
-    fn increase_balance(ref self: TContractState, amount: felt252);
-    /// Retrieve contract balance.
-    fn get_balance(self: @TContractState) -> felt252;
+// SkillCert Smart Contract System
+// Decentralized Educational Credentialing Platform
+// Author: dinahmaccodes
+// Version: 1.0
+
+use starknet::ContractAddress;
+
+// Re-export all contract modules
+pub mod user_registry;
+pub mod course_manager;
+pub mod credential_nft;
+pub mod assessment_tracker;
+
+// Export public interfaces
+pub use user_registry::{IUserRegistry, IUserRegistryDispatcher, IUserRegistryDispatcherTrait};
+pub use course_manager::{ICourseManager, ICourseManagerDispatcher, ICourseManagerDispatcherTrait};
+pub use credential_nft::{ICredentialNFT, ICredentialNFTDispatcher, ICredentialNFTDispatcherTrait};
+pub use assessment_tracker::{IAssessmentTracker, IAssessmentTrackerDispatcher, IAssessmentTrackerDispatcherTrait};
+
+// Common data structures used across the system
+#[derive(Drop, Serde, starknet::Store)]
+pub struct User {
+    pub address: ContractAddress,
+    pub role: UserRole,
+    pub reputation_score: u256,
+    pub is_verified: bool,
+    pub profile_hash: felt252,
+    pub created_at: u64,
 }
 
-/// Simple contract for managing balance.
-#[starknet::contract]
-mod HelloStarknet {
-    use core::starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+#[derive(Drop, Serde, starknet::Store, PartialEq)]
+pub enum UserRole {
+    Student,
+    Tutor,
+    University,
+    Verifier,
+}
 
-    #[storage]
-    struct Storage {
-        balance: felt252,
-    }
+#[derive(Drop, Serde, starknet::Store)]
+pub struct Course {
+    pub course_id: u256,
+    pub tutor_address: ContractAddress,
+    pub university_address: ContractAddress,
+    pub metadata_hash: felt252,
+    pub skill_tags: Array<felt252>,
+    pub difficulty_level: u8,
+    pub estimated_duration: u64,
+    pub is_active: bool,
+    pub created_at: u64,
+    pub enrollment_count: u256,
+}
 
-    #[abi(embed_v0)]
-    impl HelloStarknetImpl of super::IHelloStarknet<ContractState> {
-        fn increase_balance(ref self: ContractState, amount: felt252) {
-            assert(amount != 0, 'Amount cannot be 0');
-            self.balance.write(self.balance.read() + amount);
-        }
+#[derive(Drop, Serde, starknet::Store)]
+pub struct Enrollment {
+    pub student_address: ContractAddress,
+    pub course_id: u256,
+    pub enrolled_at: u64,
+    pub progress_percentage: u8,
+    pub completion_date: u64,
+    pub final_score: u256,
+    pub is_completed: bool,
+}
 
-        fn get_balance(self: @ContractState) -> felt252 {
-            self.balance.read()
-        }
-    }
+#[derive(Drop, Serde, starknet::Store)]
+pub struct Credential {
+    pub token_id: u256,
+    pub student_address: ContractAddress,
+    pub course_id: u256,
+    pub skill_achieved: felt252,
+    pub competency_level: u8,
+    pub issue_date: u64,
+    pub expiry_date: u64,
+    pub verification_hash: felt252,
+    pub assessment_score: u256,
+    pub is_revoked: bool,
+}
+
+#[derive(Drop, Serde, starknet::Store)]
+pub struct Assessment {
+    pub assessment_id: u256,
+    pub student_address: ContractAddress,
+    pub course_id: u256,
+    pub assessment_type: felt252,
+    pub score: u256,
+    pub max_score: u256,
+    pub completed_at: u64,
+    pub time_taken: u64,
 }
