@@ -1,21 +1,22 @@
 // SkillCert Smart Contract System
 // Decentralized Educational Credentialing Platform
-// Author: dinahmaccodes
 // Version: 1.0
 
 use starknet::ContractAddress;
+pub mod assessment_tracker;
+pub mod course_manager;
+pub mod credential_nft;
 
 // Re-export all contract modules
 pub mod user_registry;
-pub mod course_manager;
-pub mod credential_nft;
-pub mod assessment_tracker;
+pub use assessment_tracker::{
+    IAssessmentTracker, IAssessmentTrackerDispatcher, IAssessmentTrackerDispatcherTrait,
+};
+pub use course_manager::{ICourseManager, ICourseManagerDispatcher, ICourseManagerDispatcherTrait};
+pub use credential_nft::{ICredentialNFT, ICredentialNFTDispatcher, ICredentialNFTDispatcherTrait};
 
 // Export public interfaces
 pub use user_registry::{IUserRegistry, IUserRegistryDispatcher, IUserRegistryDispatcherTrait};
-pub use course_manager::{ICourseManager, ICourseManagerDispatcher, ICourseManagerDispatcherTrait};
-pub use credential_nft::{ICredentialNFT, ICredentialNFTDispatcher, ICredentialNFTDispatcherTrait};
-pub use assessment_tracker::{IAssessmentTracker, IAssessmentTrackerDispatcher, IAssessmentTrackerDispatcherTrait};
 
 // Common data structures used across the system
 #[derive(Drop, Serde, starknet::Store)]

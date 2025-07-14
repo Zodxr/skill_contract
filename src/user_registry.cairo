@@ -1,98 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // UserRegistry Contract
 // Manages user accounts, roles, and reputation system
 
@@ -104,9 +9,11 @@ pub trait IUserRegistry<TContractState> {
     // User Management Functions
     fn register_user(ref self: TContractState, role: UserRole, profile_hash: felt252) -> bool;
     fn verify_user(ref self: TContractState, user_address: ContractAddress) -> bool;
-    fn update_reputation(ref self: TContractState, user_address: ContractAddress, score_delta: i256) -> bool;
+    fn update_reputation(
+        ref self: TContractState, user_address: ContractAddress, score_delta: i256,
+    ) -> bool;
     fn authorize_contract(ref self: TContractState, contract_address: ContractAddress) -> bool;
-    
+
     // View Functions
     fn get_user(self: @TContractState, user_address: ContractAddress) -> User;
     fn is_user_verified(self: @TContractState, user_address: ContractAddress) -> bool;
@@ -119,26 +26,22 @@ pub trait IUserRegistry<TContractState> {
 
 #[starknet::contract]
 pub mod UserRegistry {
-    use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
     use core::starknet::storage::{
-        StoragePointerReadAccess, StoragePointerWriteAccess,
-        Map, StoragePathEntry
+        Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
     };
-    use super::{User, UserRole, IUserRegistry};
+    use starknet::{ContractAddress, get_block_timestamp, get_caller_address};
+    use super::{IUserRegistry, User, UserRole};
 
     #[storage]
     struct Storage {
         // Core user data
         users: Map<ContractAddress, User>,
         user_count: u256,
-        
         // Access control
         admin: ContractAddress,
         authorized_contracts: Map<ContractAddress, bool>,
-        
         // Role tracking
         role_counts: Map<UserRole, u256>,
-        
         // Contract state
         is_paused: bool,
     }
@@ -219,11 +122,11 @@ pub mod UserRegistry {
         fn register_user(ref self: ContractState, role: UserRole, profile_hash: felt252) -> bool {
             self.assert_not_paused();
             let caller = get_caller_address();
-            
+
             // Check if user already exists
             let existing_user = self.users.read(caller);
             assert(existing_user.address.is_zero(), 'User already registered');
-            
+
             // Create new user
             let timestamp = get_block_timestamp();
             let initial_reputation = match role {
@@ -244,20 +147,16 @@ pub mod UserRegistry {
 
             // Store user data
             self.users.write(caller, new_user);
-            
+
             // Update counters
             let current_count = self.user_count.read();
             self.user_count.write(current_count + 1);
-            
+
             let role_count = self.role_counts.read(role);
             self.role_counts.write(role, role_count + 1);
 
             // Emit event
-            self.emit(UserRegistered {
-                user_address: caller,
-                role: role,
-                timestamp: timestamp,
-            });
+            self.emit(UserRegistered { user_address: caller, role: role, timestamp: timestamp });
 
             true
         }
@@ -266,39 +165,44 @@ pub mod UserRegistry {
             self.assert_not_paused();
             let caller = get_caller_address();
             let caller_user = self.users.read(caller);
-            
+
             // Only admin or universities can verify users
             let admin = self.admin.read();
             assert(
                 caller == admin || caller_user.role == UserRole::University,
-                'Not authorized to verify users'
+                'Not authorized to verify users',
             );
-            
+
             let mut user = self.users.read(user_address);
             assert(!user.address.is_zero(), 'User does not exist');
             assert(!user.is_verified, 'User already verified');
-            
+
             user.is_verified = true;
             self.users.write(user_address, user);
 
             // Emit event
-            self.emit(UserVerified {
-                user_address: user_address,
-                verified_by: caller,
-                timestamp: get_block_timestamp(),
-            });
+            self
+                .emit(
+                    UserVerified {
+                        user_address: user_address,
+                        verified_by: caller,
+                        timestamp: get_block_timestamp(),
+                    },
+                );
 
             true
         }
 
-        fn update_reputation(ref self: ContractState, user_address: ContractAddress, score_delta: i256) -> bool {
+        fn update_reputation(
+            ref self: ContractState, user_address: ContractAddress, score_delta: i256,
+        ) -> bool {
             self.assert_authorized();
-            
+
             let mut user = self.users.read(user_address);
             assert(!user.address.is_zero(), 'User does not exist');
-            
+
             let old_score = user.reputation_score;
-            
+
             // Handle reputation changes (prevent underflow)
             if score_delta < 0 {
                 let delta_abs = (-score_delta).try_into().unwrap();
@@ -311,31 +215,37 @@ pub mod UserRegistry {
                 let delta_pos = score_delta.try_into().unwrap();
                 user.reputation_score = old_score + delta_pos;
             }
-            
+
             self.users.write(user_address, user);
 
             // Emit event
-            self.emit(ReputationUpdated {
-                user_address: user_address,
-                old_score: old_score,
-                new_score: user.reputation_score,
-                timestamp: get_block_timestamp(),
-            });
+            self
+                .emit(
+                    ReputationUpdated {
+                        user_address: user_address,
+                        old_score: old_score,
+                        new_score: user.reputation_score,
+                        timestamp: get_block_timestamp(),
+                    },
+                );
 
             true
         }
 
         fn authorize_contract(ref self: ContractState, contract_address: ContractAddress) -> bool {
             self.assert_only_admin();
-            
+
             self.authorized_contracts.write(contract_address, true);
 
             // Emit event
-            self.emit(ContractAuthorized {
-                contract_address: contract_address,
-                authorized_by: get_caller_address(),
-                timestamp: get_block_timestamp(),
-            });
+            self
+                .emit(
+                    ContractAuthorized {
+                        contract_address: contract_address,
+                        authorized_by: get_caller_address(),
+                        timestamp: get_block_timestamp(),
+                    },
+                );
 
             true
         }
@@ -391,11 +301,14 @@ pub mod UserRegistry {
             let old_admin = self.admin.read();
             self.admin.write(new_admin);
 
-            self.emit(AdminChanged {
-                old_admin: old_admin,
-                new_admin: new_admin,
-                timestamp: get_block_timestamp(),
-            });
+            self
+                .emit(
+                    AdminChanged {
+                        old_admin: old_admin,
+                        new_admin: new_admin,
+                        timestamp: get_block_timestamp(),
+                    },
+                );
         }
     }
 }

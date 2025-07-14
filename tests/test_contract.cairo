@@ -1,13 +1,13 @@
-use starknet::ContractAddress;
-use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address, stop_cheat_caller_address};
-
 use skill_contract::{
-    IUserRegistryDispatcher, IUserRegistryDispatcherTrait,
-    ICourseManagerDispatcher, ICourseManagerDispatcherTrait,
-    ICredentialNFTDispatcher, ICredentialNFTDispatcherTrait,
-    IAssessmentTrackerDispatcher, IAssessmentTrackerDispatcherTrait,
-    UserRole
+    IAssessmentTrackerDispatcher, IAssessmentTrackerDispatcherTrait, ICourseManagerDispatcher,
+    ICourseManagerDispatcherTrait, ICredentialNFTDispatcher, ICredentialNFTDispatcherTrait,
+    IUserRegistryDispatcher, IUserRegistryDispatcherTrait, UserRole,
 };
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
+    stop_cheat_caller_address,
+};
+use starknet::ContractAddress;
 
 fn deploy_user_registry(admin: ContractAddress) -> ContractAddress {
     let contract = declare("UserRegistry").unwrap().contract_class();
@@ -16,14 +16,18 @@ fn deploy_user_registry(admin: ContractAddress) -> ContractAddress {
     contract_address
 }
 
-fn deploy_course_manager(admin: ContractAddress, user_registry: ContractAddress) -> ContractAddress {
+fn deploy_course_manager(
+    admin: ContractAddress, user_registry: ContractAddress,
+) -> ContractAddress {
     let contract = declare("CourseManager").unwrap().contract_class();
     let constructor_args = array![admin.into(), user_registry.into()];
     let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
     contract_address
 }
 
-fn deploy_assessment_tracker(admin: ContractAddress, user_registry: ContractAddress, course_manager: ContractAddress) -> ContractAddress {
+fn deploy_assessment_tracker(
+    admin: ContractAddress, user_registry: ContractAddress, course_manager: ContractAddress,
+) -> ContractAddress {
     let contract = declare("AssessmentTracker").unwrap().contract_class();
     let constructor_args = array![admin.into(), user_registry.into(), course_manager.into()];
     let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
@@ -34,7 +38,7 @@ fn deploy_assessment_tracker(admin: ContractAddress, user_registry: ContractAddr
 fn test_user_registration() {
     let admin: ContractAddress = starknet::contract_address_const::<0x123>();
     let student: ContractAddress = starknet::contract_address_const::<0x456>();
-    
+
     let user_registry_address = deploy_user_registry(admin);
     let user_registry = IUserRegistryDispatcher { contract_address: user_registry_address };
 
@@ -67,10 +71,10 @@ fn test_tutor_registration_and_course_creation() {
     let admin: ContractAddress = starknet::contract_address_const::<0x123>();
     let tutor: ContractAddress = starknet::contract_address_const::<0x789>();
     let university: ContractAddress = starknet::contract_address_const::<0xabc>();
-    
+
     let user_registry_address = deploy_user_registry(admin);
     let user_registry = IUserRegistryDispatcher { contract_address: user_registry_address };
-    
+
     let course_manager_address = deploy_course_manager(admin, user_registry_address);
     let course_manager = ICourseManagerDispatcher { contract_address: course_manager_address };
 
@@ -78,7 +82,7 @@ fn test_tutor_registration_and_course_creation() {
     start_cheat_caller_address(user_registry_address, tutor);
     user_registry.register_user(UserRole::Tutor, 'tutor_profile');
     stop_cheat_caller_address(user_registry_address);
-    
+
     start_cheat_caller_address(user_registry_address, admin);
     user_registry.verify_user(tutor);
     stop_cheat_caller_address(user_registry_address);
@@ -87,7 +91,7 @@ fn test_tutor_registration_and_course_creation() {
     start_cheat_caller_address(user_registry_address, university);
     user_registry.register_user(UserRole::University, 'university_profile');
     stop_cheat_caller_address(user_registry_address);
-    
+
     start_cheat_caller_address(user_registry_address, admin);
     user_registry.verify_user(university);
     stop_cheat_caller_address(user_registry_address);
@@ -95,13 +99,14 @@ fn test_tutor_registration_and_course_creation() {
     // Create course
     start_cheat_caller_address(course_manager_address, tutor);
     let skill_tags = array!['blockchain', 'cairo'];
-    let course_id = course_manager.create_course(
-        'course_metadata_hash',
-        skill_tags,
-        5, // difficulty level
-        40, // estimated duration
-        university // university endorsement
-    );
+    let course_id = course_manager
+        .create_course(
+            'course_metadata_hash',
+            skill_tags,
+            5, // difficulty level
+            40, // estimated duration
+            university // university endorsement
+        );
     stop_cheat_caller_address(course_manager_address);
 
     assert(course_id == 1, 'Course ID should be 1');
@@ -120,26 +125,30 @@ fn test_student_enrollment_and_assessment() {
     let tutor: ContractAddress = starknet::contract_address_const::<0x789>();
     let student: ContractAddress = starknet::contract_address_const::<0x456>();
     let university: ContractAddress = starknet::contract_address_const::<0xabc>();
-    
+
     // Deploy contracts
     let user_registry_address = deploy_user_registry(admin);
     let user_registry = IUserRegistryDispatcher { contract_address: user_registry_address };
-    
+
     let course_manager_address = deploy_course_manager(admin, user_registry_address);
     let course_manager = ICourseManagerDispatcher { contract_address: course_manager_address };
-    
-    let assessment_tracker_address = deploy_assessment_tracker(admin, user_registry_address, course_manager_address);
-    let assessment_tracker = IAssessmentTrackerDispatcher { contract_address: assessment_tracker_address };
+
+    let assessment_tracker_address = deploy_assessment_tracker(
+        admin, user_registry_address, course_manager_address,
+    );
+    let assessment_tracker = IAssessmentTrackerDispatcher {
+        contract_address: assessment_tracker_address,
+    };
 
     // Register users
     start_cheat_caller_address(user_registry_address, tutor);
     user_registry.register_user(UserRole::Tutor, 'tutor_profile');
     stop_cheat_caller_address(user_registry_address);
-    
+
     start_cheat_caller_address(user_registry_address, student);
     user_registry.register_user(UserRole::Student, 'student_profile');
     stop_cheat_caller_address(user_registry_address);
-    
+
     start_cheat_caller_address(user_registry_address, university);
     user_registry.register_user(UserRole::University, 'university_profile');
     stop_cheat_caller_address(user_registry_address);
@@ -154,13 +163,7 @@ fn test_student_enrollment_and_assessment() {
     // Create course
     start_cheat_caller_address(course_manager_address, tutor);
     let skill_tags = array!['programming', 'cairo'];
-    let course_id = course_manager.create_course(
-        'course_metadata',
-        skill_tags,
-        3,
-        20,
-        university
-    );
+    let course_id = course_manager.create_course('course_metadata', skill_tags, 3, 20, university);
     stop_cheat_caller_address(course_manager_address);
 
     // Student enrolls
@@ -177,14 +180,12 @@ fn test_student_enrollment_and_assessment() {
 
     // Record assessment
     start_cheat_caller_address(assessment_tracker_address, tutor);
-    let assessment_id = assessment_tracker.record_assessment(
-        student,
-        course_id,
-        'quiz',
-        85, // score
-        100, // max score
-        3600 // time taken (1 hour)
-    );
+    let assessment_id = assessment_tracker
+        .record_assessment(
+            student, course_id, 'quiz', 85, // score
+            100, // max score
+            3600 // time taken (1 hour)
+        );
     stop_cheat_caller_address(assessment_tracker_address);
 
     assert(assessment_id == 1, 'Assessment ID should be 1');
@@ -202,11 +203,11 @@ fn test_course_completion() {
     let tutor: ContractAddress = starknet::contract_address_const::<0x789>();
     let student: ContractAddress = starknet::contract_address_const::<0x456>();
     let university: ContractAddress = starknet::contract_address_const::<0xabc>();
-    
+
     // Deploy and setup contracts (similar to previous test)
     let user_registry_address = deploy_user_registry(admin);
     let user_registry = IUserRegistryDispatcher { contract_address: user_registry_address };
-    
+
     let course_manager_address = deploy_course_manager(admin, user_registry_address);
     let course_manager = ICourseManagerDispatcher { contract_address: course_manager_address };
 
@@ -214,11 +215,11 @@ fn test_course_completion() {
     start_cheat_caller_address(user_registry_address, tutor);
     user_registry.register_user(UserRole::Tutor, 'tutor_profile');
     stop_cheat_caller_address(user_registry_address);
-    
+
     start_cheat_caller_address(user_registry_address, student);
     user_registry.register_user(UserRole::Student, 'student_profile');
     stop_cheat_caller_address(user_registry_address);
-    
+
     start_cheat_caller_address(user_registry_address, university);
     user_registry.register_user(UserRole::University, 'university_profile');
     stop_cheat_caller_address(user_registry_address);
@@ -232,13 +233,7 @@ fn test_course_completion() {
     // Create course and enroll student
     start_cheat_caller_address(course_manager_address, tutor);
     let skill_tags = array!['smart_contracts'];
-    let course_id = course_manager.create_course(
-        'advanced_course',
-        skill_tags,
-        8,
-        60,
-        university
-    );
+    let course_id = course_manager.create_course('advanced_course', skill_tags, 8, 60, university);
     stop_cheat_caller_address(course_manager_address);
 
     start_cheat_caller_address(course_manager_address, student);
